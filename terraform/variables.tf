@@ -23,7 +23,7 @@ variable "location" {
 variable "postgres_name" {
   description = "PostgreSQL flexible server name"
   type        = string
-  default     = "mechcraft-pg"
+  default     = "mechcraft-pg-2583"
 }
 
 variable "postgres_admin" {

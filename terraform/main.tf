@@ -8,7 +8,7 @@ resource "azurerm_postgresql_flexible_server" "this" {
   location                      = var.location
   administrator_login           = var.postgres_admin
   administrator_password        = var.postgres_password
-  sku_name                      = "Standard_B1ms"
+  sku_name                      = "B_Standard_B1ms"
   version                       = "13"
   storage_mb                    = 32768
   public_network_access_enabled = true
