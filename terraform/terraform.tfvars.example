@@ -1,0 +1,8 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+tenant_id           = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "mechcraft-rg"
+location            = "Central US"
+postgres_name       = "mechcraft-centralus-pg"
+postgres_admin      = "pgadmin"
+postgres_password   = "ChangeMePlease123!"
+database_name       = "mechcraft"
