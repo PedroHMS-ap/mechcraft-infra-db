@@ -40,6 +40,13 @@ Use [`terraform/terraform.tfvars.example`](terraform/terraform.tfvars.example) c
 - Push em `homolog`: `plan` + `apply`
 - Push em `main`: `plan` + `apply`
 
+## Ordem de provisionamento
+
+Este repositorio usa o Resource Group compartilhado `mechcraft-rg`. Portanto, o fluxo recomendado e:
+
+1. Executar primeiro o repositorio `mechcraft-infra-k8s`
+2. Executar depois o repositorio `mechcraft-infra-db`
+
 Secrets esperados:
 
 - `AZURE_CREDENTIALS`
