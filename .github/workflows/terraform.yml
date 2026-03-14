@@ -25,6 +25,12 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     environment: homolog
+    env:
+      TFSTATE_RESOURCE_GROUP: mechcraft-tfstate-rg
+      TFSTATE_STORAGE_ACCOUNT: peddrmctf62170
+      TFSTATE_CONTAINER: tfstate
+      TFSTATE_KEY: mechcraft/infra-db.tfstate
+      TFSTATE_LOCATION: centralus
     defaults:
       run:
         working-directory: terraform
@@ -34,7 +40,33 @@ jobs:
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - run: terraform init
+      - name: Ensure Terraform backend
+        shell: bash
+        run: |
+          az group create --name "${TFSTATE_RESOURCE_GROUP}" --location "${TFSTATE_LOCATION}"
+          if ! az storage account show --resource-group "${TFSTATE_RESOURCE_GROUP}" --name "${TFSTATE_STORAGE_ACCOUNT}" >/dev/null 2>&1; then
+            az storage account create \
+              --resource-group "${TFSTATE_RESOURCE_GROUP}" \
+              --name "${TFSTATE_STORAGE_ACCOUNT}" \
+              --location "${TFSTATE_LOCATION}" \
+              --sku Standard_LRS \
+              --kind StorageV2 \
+              --min-tls-version TLS1_2 \
+              --allow-blob-public-access false
+          fi
+          STORAGE_KEY="$(az storage account keys list --resource-group "${TFSTATE_RESOURCE_GROUP}" --account-name "${TFSTATE_STORAGE_ACCOUNT}" --query '[0].value' -o tsv)"
+          az storage container create \
+            --name "${TFSTATE_CONTAINER}" \
+            --account-name "${TFSTATE_STORAGE_ACCOUNT}" \
+            --account-key "${STORAGE_KEY}" >/dev/null
+          cat > backend.hcl <<EOF
+          resource_group_name  = "${TFSTATE_RESOURCE_GROUP}"
+          storage_account_name = "${TFSTATE_STORAGE_ACCOUNT}"
+          container_name       = "${TFSTATE_CONTAINER}"
+          key                  = "${TFSTATE_KEY}"
+          access_key           = "${STORAGE_KEY}"
+          EOF
+      - run: terraform init -reconfigure -backend-config=backend.hcl
       - run: terraform plan -out=tfplan
         env:
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -51,6 +83,12 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     environment: production
+    env:
+      TFSTATE_RESOURCE_GROUP: mechcraft-tfstate-rg
+      TFSTATE_STORAGE_ACCOUNT: peddrmctf62170
+      TFSTATE_CONTAINER: tfstate
+      TFSTATE_KEY: mechcraft/infra-db.tfstate
+      TFSTATE_LOCATION: centralus
     defaults:
       run:
         working-directory: terraform
@@ -60,7 +98,33 @@ jobs:
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - run: terraform init
+      - name: Ensure Terraform backend
+        shell: bash
+        run: |
+          az group create --name "${TFSTATE_RESOURCE_GROUP}" --location "${TFSTATE_LOCATION}"
+          if ! az storage account show --resource-group "${TFSTATE_RESOURCE_GROUP}" --name "${TFSTATE_STORAGE_ACCOUNT}" >/dev/null 2>&1; then
+            az storage account create \
+              --resource-group "${TFSTATE_RESOURCE_GROUP}" \
+              --name "${TFSTATE_STORAGE_ACCOUNT}" \
+              --location "${TFSTATE_LOCATION}" \
+              --sku Standard_LRS \
+              --kind StorageV2 \
+              --min-tls-version TLS1_2 \
+              --allow-blob-public-access false
+          fi
+          STORAGE_KEY="$(az storage account keys list --resource-group "${TFSTATE_RESOURCE_GROUP}" --account-name "${TFSTATE_STORAGE_ACCOUNT}" --query '[0].value' -o tsv)"
+          az storage container create \
+            --name "${TFSTATE_CONTAINER}" \
+            --account-name "${TFSTATE_STORAGE_ACCOUNT}" \
+            --account-key "${STORAGE_KEY}" >/dev/null
+          cat > backend.hcl <<EOF
+          resource_group_name  = "${TFSTATE_RESOURCE_GROUP}"
+          storage_account_name = "${TFSTATE_STORAGE_ACCOUNT}"
+          container_name       = "${TFSTATE_CONTAINER}"
+          key                  = "${TFSTATE_KEY}"
+          access_key           = "${STORAGE_KEY}"
+          EOF
+      - run: terraform init -reconfigure -backend-config=backend.hcl
       - run: terraform plan -out=tfplan
         env:
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
