@@ -21,7 +21,7 @@ jobs:
       - run: terraform validate
 
   deploy-homolog:
-    if: github.event_name == 'push' && github.ref_name == 'homolog'
+    if: github.event_name != 'pull_request' && github.ref_name == 'homolog'
     needs: validate
     runs-on: ubuntu-latest
     environment: homolog
@@ -71,6 +71,29 @@ jobs:
           access_key           = "${STORAGE_KEY}"
           EOF
       - run: terraform init -reconfigure -backend-config=backend.hcl
+      - name: Import existing resources into Terraform state
+        shell: bash
+        env:
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          SERVER_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/mechcraft-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/mechcraft-pg-2583"
+          DATABASE_ID="${SERVER_ID}/databases/mechcraft"
+          FIREWALL_ID="${SERVER_ID}/firewallRules/allow-azure-services"
+          TIMEZONE_ID="${SERVER_ID}/configurations/timezone"
+
+          if az resource show --ids "${SERVER_ID}" >/dev/null 2>&1; then
+            terraform state show azurerm_postgresql_flexible_server.this >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server.this "${SERVER_ID}"
+            terraform state show azurerm_postgresql_flexible_server_configuration.timezone >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server_configuration.timezone "${TIMEZONE_ID}"
+
+            if az postgres flexible-server db show --resource-group mechcraft-rg --server-name mechcraft-pg-2583 --database-name mechcraft >/dev/null 2>&1; then
+              terraform state show azurerm_postgresql_flexible_server_database.app >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server_database.app "${DATABASE_ID}"
+            fi
+
+            if az postgres flexible-server firewall-rule show --resource-group mechcraft-rg --name mechcraft-pg-2583 --rule-name allow-azure-services >/dev/null 2>&1; then
+              terraform state show azurerm_postgresql_flexible_server_firewall_rule.allow_azure_services >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server_firewall_rule.allow_azure_services "${FIREWALL_ID}"
+            fi
+          fi
+
       - run: terraform plan -out=tfplan
         env:
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -83,7 +106,7 @@ jobs:
           TF_VAR_postgres_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
 
   deploy-production:
-    if: github.event_name == 'push' && github.ref_name == 'main'
+    if: github.event_name != 'pull_request' && github.ref_name == 'main'
     needs: validate
     runs-on: ubuntu-latest
     environment: production
@@ -133,6 +156,29 @@ jobs:
           access_key           = "${STORAGE_KEY}"
           EOF
       - run: terraform init -reconfigure -backend-config=backend.hcl
+      - name: Import existing resources into Terraform state
+        shell: bash
+        env:
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          SERVER_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/mechcraft-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/mechcraft-pg-2583"
+          DATABASE_ID="${SERVER_ID}/databases/mechcraft"
+          FIREWALL_ID="${SERVER_ID}/firewallRules/allow-azure-services"
+          TIMEZONE_ID="${SERVER_ID}/configurations/timezone"
+
+          if az resource show --ids "${SERVER_ID}" >/dev/null 2>&1; then
+            terraform state show azurerm_postgresql_flexible_server.this >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server.this "${SERVER_ID}"
+            terraform state show azurerm_postgresql_flexible_server_configuration.timezone >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server_configuration.timezone "${TIMEZONE_ID}"
+
+            if az postgres flexible-server db show --resource-group mechcraft-rg --server-name mechcraft-pg-2583 --database-name mechcraft >/dev/null 2>&1; then
+              terraform state show azurerm_postgresql_flexible_server_database.app >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server_database.app "${DATABASE_ID}"
+            fi
+
+            if az postgres flexible-server firewall-rule show --resource-group mechcraft-rg --name mechcraft-pg-2583 --rule-name allow-azure-services >/dev/null 2>&1; then
+              terraform state show azurerm_postgresql_flexible_server_firewall_rule.allow_azure_services >/dev/null 2>&1 || terraform import azurerm_postgresql_flexible_server_firewall_rule.allow_azure_services "${FIREWALL_ID}"
+            fi
+          fi
+
       - run: terraform plan -out=tfplan
         env:
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
